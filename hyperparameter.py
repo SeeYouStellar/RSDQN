@@ -1,0 +1,11 @@
+lr = 1e-3
+GAMMA = 0.9
+batch_size = 30
+ReplyBuffer_size = 200
+target_update_frequency = 50
+plot_frequency = 50
+lambda1 = 0
+lambda2 = -100
+lambda3 = 100
+lambda4 = 0
+epsilon = 0.9
