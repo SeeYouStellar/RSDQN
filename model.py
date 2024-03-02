@@ -4,9 +4,9 @@ import torch.nn.functional as F
 class Qnet(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Qnet, self).__init__()
-        self.l1 = nn.Linear(state_dim, 64)
-        self.l2 = nn.Linear(64, 32)
-        self.l3 = nn.Linear(32, action_dim)
+        self.l1 = nn.Linear(state_dim, 128)
+        self.l2 = nn.Linear(128, 128)
+        self.l3 = nn.Linear(128, action_dim)
 
     def forward(self, s):
         s = F.relu(self.l1(s))

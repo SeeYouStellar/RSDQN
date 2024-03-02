@@ -1,6 +1,7 @@
 from dataSet.data import Data
 import numpy as np
 import hyperparameter as hp
+import logging
 
 alpha = 0.5  # reward weighting factor
 beta = [0.5, 0.5]  # 资源亲和度
@@ -20,8 +21,8 @@ class Env():
     def __init__(self):
         # State
         self.State = []
-        self.node_state_queue = []
-        self.container_state_queue = []
+        self.node_state = []
+        self.container_state = []
 
         self.state_dim = 0
         self.action_dim = NodeNumber*ContainerNumber
@@ -34,19 +35,25 @@ class Env():
         self.lambda3 = hp.lambda3
         self.lambda4 = hp.lambda4
 
-        self.MinCost = 0
-        self.REWARD = 0
+        self.MinCost = 1e3
+        self.REWARD = -1e3
+
+        self.allCost = []
+        for i in range(ContainerNumber):
+            self.allCost.append([])
+
         self.prepare()
+        logging.basicConfig(level=logging.INFO, filename='cost.log', format='%(asctime)s - %(levelname)s - %(message)s')
 
     def prepare(self):
-        self.container_state_queue = container_state1[:]
+        self.container_state = container_state1[:]
         for i in range(NodeNumber):
             '''[[1, 0, ..., 1, cpu, mem], [], []], 前面containernum个元素代表该container是否部署在该节点上，最后两个属性是cpu和mem的资源利用率'''
             for j in range(ContainerNumber + 2):
-                self.node_state_queue.append(0)
-        # print(self.container_state_queue)
-        # print(self.node_state_queue)
-        self.State = self.container_state_queue + self.node_state_queue
+                self.node_state.append(0)
+        # print(self.container_state)
+        # print(self.node_state)
+        self.State = self.container_state + self.node_state
         # print(self.State)
         self.action = [-1, -1]  # 当前step采取的action,每一个action只会最多将一个容器部署到节点上
         # Communication weight between microservices
@@ -56,8 +63,8 @@ class Env():
         self.state_dim = len(self.State)
 
     def reset(self):
-        self.node_state_queue = []
-        self.container_state_queue = []
+        self.node_state = []
+        self.container_state = []
         self.prepare()
         return self.State
 
@@ -66,8 +73,8 @@ class Env():
         m = -1
         n = -1
         # 每个微服务部署的节点
-        m = self.container_state_queue[i * 3]
-        n = self.container_state_queue[j * 3]
+        m = self.container_state[i * 3]
+        n = self.container_state[j * 3]
         # 每个容器对应的微服务
         p = service_container_relationship[i]
         q = service_container_relationship[j]
@@ -108,8 +115,8 @@ class Env():
         Var = 0
         for i in range(NodeNumber):
             '''[[1, 0, ..., 1, cpu, mem], [], []], 前面containernum个元素代表该container是否部署在该节点上，最后两个属性是cpu和mem资源占用率'''
-            U = self.node_state_queue[i * (ContainerNumber + 2) + ContainerNumber]
-            M = self.node_state_queue[i * (ContainerNumber + 2) + (ContainerNumber + 1)]
+            U = self.node_state[i * (ContainerNumber + 2) + ContainerNumber]
+            M = self.node_state[i * (ContainerNumber + 2) + (ContainerNumber + 1)]
             NodeCPU.append(U)
             NodeMemory.append(M)
             if NodeCPU[i] > 1 or NodeMemory[i] > 1:
@@ -124,16 +131,15 @@ class Env():
         # todo g1和g2的归一化
         re = 0
         g1 = self.ComCost()
-        # g1 = g1 / 371.5
-        g1 = g1 * 1e-5
+        g1 = g1 / 371.5
         g2 = self.usageVar()
-        print(g1, g2)
-        if g2 < 0:
-            g2 = -100
-        # g2 = g2 / 6.002500000000001
+        # if g2 < 0:
+        #     g2 = -100
+        g2 = g2 / 6.002500000000001
 
+        logging.info('com:%f  use:%f', g1, g2)
         re += alpha * g1 + (1 - alpha) * g2   
-        return 100 * re, g1, g2
+        return re*100, g1, g2
 
     def reward(self, cost, done, episode):
         if not done:
@@ -150,8 +156,8 @@ class Env():
             else:
                 return self.lambda4*(self.MinCost-cost)
 
-    def state_update(self, container_state_queue, node_state_queue):
-        self.State = container_state_queue + node_state_queue
+    def state_update(self, container_state, node_state):
+        self.State = container_state + node_state
 
     def update(self):
         # 根据 action 来 更新 state
@@ -160,45 +166,54 @@ class Env():
             # self.action[1] 容器
             # self.action[0] 节点
             # update container state
-            self.container_state_queue[self.action[1] * 3] = self.action[0]  # 某个容器部署在某个节点上
+            self.container_state[self.action[1] * 3] = self.action[0]  # 某个容器部署在某个节点上
             # update node state
-            self.node_state_queue[(self.action[0]-1) * (ContainerNumber + 2) + self.action[1]] = 1  # 代表容器该部署在该节点上
+            self.node_state[(self.action[0]) * (ContainerNumber + 2) + self.action[1]] = 1  # 代表容器该部署在该节点上
             # 把容器的资源需求加到节点的资源占用上
-            self.node_state_queue[(self.action[0]-1) * (ContainerNumber + 2) + ContainerNumber] += self.container_state_queue[self.action[1] * 3 + 1]
-            self.node_state_queue[(self.action[0]-1) * (ContainerNumber + 2) + (ContainerNumber + 1)] += self.container_state_queue[self.action[1] * 3 + 2]
+            self.node_state[(self.action[0]) * (ContainerNumber + 2) + ContainerNumber] += self.container_state[self.action[1] * 3 + 1]
+            self.node_state[(self.action[0]) * (ContainerNumber + 2) + (ContainerNumber + 1)] += self.container_state[self.action[1] * 3 + 2]
         else:
             # print("invalid action, action = [{}, {}]".format(self.action[0], self.action[1]))
-            self.node_state_queue = []
-            self.container_state_queue = []
+            self.node_state = []
+            self.container_state = []
             self.prepare()
 
-        self.state_update(self.container_state_queue, self.node_state_queue)
-        # print(self.State)
-        return self.State
+        self.state_update(self.container_state, self.node_state)
 
-    def step(self, action, episode):
-        # input: action(Targetnode，ContainerIndex)
-        # output: next state, cost, done
-        self.action = self.index_to_act(action)  # action = containernum*nodenum+x
-        self.update()  # 因为action是self的成员变量，所以不用传参
-        cost, comm, var = self.cost()
-        # print(cost, comm, var)
+    def step(self, action, episode, step):
+
+        self.action = self.index_to_act(action)  # action = containernum*nodenum+x  [节点，容器]
+        self.update()
         done = 0
-        count = 0
+        cost, comm, var = self.cost()
 
-        for i in range(ContainerNumber):
-            if self.container_state_queue[3 * i] != -1:  # 初始化是（-1,cpu,mem）,用-1判断该容器是否部署
-                count += 1
-        if count == ContainerNumber:  # 已全部部署完毕
+        if self.allCost[step]:
+            self.MinCost = min(self.allCost[step])
+
+        # 第一个episode索性不要了
+        if episode == 1 and step == self.containernum - 1:
             done = 1
+            return self.State, 0, done, cost
+        elif episode == 1:
+            return self.State, 0, done, cost
 
-        r = self.reward(cost, done, episode)
-        if r > self.REWARD:
-            self.REWARD = r
-        if cost < self.MinCost:
-            self.MinCost = cost
-        return self.State, r, done
+        r = 0
+        if cost > 0:
+            if step == self.containernum - 1:
+                done = 1
+                if abs(self.MinCost - cost) < 1e-7:
+                    r = self.REWARD
+                elif (self.MinCost - cost) > 0:
+                    self.REWARD = self.REWARD + self.lambda3
+                    r = self.REWARD
+                else:
+                    r = self.lambda4 * (self.MinCost - cost)
+                self.allCost[step].append(cost)
+        else:
+            done = 1
+            r = self.lambda2
 
+        return self.State, r, done, cost
 
     def index_to_act(self, index):
         act = [-1, -1]
