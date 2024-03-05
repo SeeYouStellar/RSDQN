@@ -3,8 +3,8 @@ import xml.dom.minidom
 from xml.etree import ElementTree as ET
 
 # 每个节点的资源数
-CPUnum = 7
-Mem = 8*1024
+CPUnum = 10
+Mem = 10*1024
 
 dom1 = xml.dom.minidom.parse('.\\dataSet\\data.xml')
 root = dom1.documentElement

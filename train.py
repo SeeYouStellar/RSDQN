@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     agent = DQN(state_dim, action_dim, container_num)
     RB = ReplayBuffer(hp.ReplyBuffer_size)
-    logging.basicConfig(level=logging.INFO, filename='loss.log', format='%(asctime)s - %(levelname)s - %(message)s')
+    # logging.basicConfig(level=logging.INFO, filename='loss.log', format='%(asctime)s - %(levelname)s - %(message)s')
 
     episode = 0
     globalstep = 0
@@ -105,13 +105,13 @@ if __name__ == '__main__':
             step += 1
             globalstep += 1
             if done and episode != 1:
-                if r > 0:
-                    for i in range(len(episode_r)):  # 有些情况没有部署完就退出，因为cost<0
-                        episode_r[i] = r
-                    for i in range(len(episode_r)):
-                        RB.push(episode_s[i], episode_a[i], episode_r[i], episode_d[i], episode_s_[i])
-                else:
-                    RB.push(episode_s[-1], episode_a[-1], episode_r[-1], episode_d[-1], episode_s_[-1])
+                # if r > 0:
+                for i in range(len(episode_r)):  # 有些情况没有部署完就退出，因为cost<0
+                    episode_r[i] = r
+                for i in range(len(episode_r)):
+                    RB.push(episode_s[i], episode_a[i], episode_r[i], episode_d[i], episode_s_[i])
+                # else:
+                #     RB.push(episode_s[-1], episode_a[-1], episode_r[-1], episode_d[-1], episode_s_[-1])
                 rewards.append(r)
                 costs.append(np.mean(episode_cost))
                 agent.clean_settled()
@@ -134,12 +134,13 @@ if __name__ == '__main__':
             if globalstep > hp.ReplyBuffer_size:
                 bs, ba, br, bd, bs_ = RB.sample(n=hp.batch_size)
                 loss = agent.learn(bs, ba, br, bd, bs_)
+
                 losss.append(loss)
-                logging.info('%f', loss)
+                # logging.info('%f', loss)
             if globalstep % hp.target_update_frequency == 0:
                 agent.target.load_state_dict(agent.policy.state_dict())
-        if episode % hp.plot_frequency == 0:
+        if episode % hp.plot_frequency == 0 and globalstep > hp.ReplyBuffer_size:
             # plot_reward(rewards)
             plot_cost(costs)
-    plot_loss(losss)
+    plot_loss(losss[:2501])
 

@@ -38,10 +38,6 @@ class Env():
         self.MinCost = 1e3
         self.REWARD = -1e3
 
-        self.allCost = []
-        for i in range(ContainerNumber):
-            self.allCost.append([])
-
         self.prepare()
         logging.basicConfig(level=logging.INFO, filename='cost.log', format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -129,17 +125,24 @@ class Env():
 
     def cost(self):
         # todo g1和g2的归一化
-        re = 0
-        g1 = self.ComCost()
-        g1 = g1 / 371.5
-        g2 = self.usageVar()
+        # re = 0
+        # g1 = self.ComCost()
+        # g1 = g1 / 371.5
+        # g2 = self.usageVar()
         # if g2 < 0:
         #     g2 = -100
-        g2 = g2 / 6.002500000000001
-
-        logging.info('com:%f  use:%f', g1, g2)
-        re += alpha * g1 + (1 - alpha) * g2   
-        return re*100, g1, g2
+        # g2 = g2 / 6.002500000000001
+        #
+        # logging.info('com:%f  use:%f', g1, g2)
+        # re += alpha * g1 + (1 - alpha) * g2
+        # return re*100, g1, g2
+        re = 0
+        g1 = self.ComCost()
+        g1 = g1 / 4
+        g2 = self.usageVar()
+        g2 = g2 / 0.052812500000000005
+        re += alpha * g1 + (1 - alpha) * g2
+        return re, g1, g2
 
     def reward(self, cost, done, episode):
         if not done:
@@ -150,11 +153,13 @@ class Env():
             if cost < 0:
                 return self.lambda2
             elif cost > 0 and cost < self.MinCost:
-                return self.REWARD+self.lambda3
+                self.MinCost = cost
+                self.REWARD = self.REWARD + self.lambda3
+                return self.REWARD
             elif cost == self.MinCost:
                 return self.REWARD
             else:
-                return self.lambda4*(self.MinCost-cost)
+                return self.lambda4 * (self.MinCost - cost)
 
     def state_update(self, container_state, node_state):
         self.State = container_state + node_state
@@ -186,32 +191,10 @@ class Env():
         self.update()
         done = 0
         cost, comm, var = self.cost()
-
-        if self.allCost[step]:
-            self.MinCost = min(self.allCost[step])
-
-        # 第一个episode索性不要了
-        if episode == 1 and step == self.containernum - 1:
+        if step == self.containernum - 1:
             done = 1
-            return self.State, 0, done, cost
-        elif episode == 1:
-            return self.State, 0, done, cost
 
-        r = 0
-        if cost > 0:
-            if step == self.containernum - 1:
-                done = 1
-                if abs(self.MinCost - cost) < 1e-7:
-                    r = self.REWARD
-                elif (self.MinCost - cost) > 0:
-                    self.REWARD = self.REWARD + self.lambda3
-                    r = self.REWARD
-                else:
-                    r = self.lambda4 * (self.MinCost - cost)
-                self.allCost[step].append(cost)
-        else:
-            done = 1
-            r = self.lambda2
+        r = self.reward(cost, done, episode)
 
         return self.State, r, done, cost
 

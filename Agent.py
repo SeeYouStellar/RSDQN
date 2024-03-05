@@ -54,7 +54,10 @@ class DQN(object):
         # 使用MSE计算loss。
         # one = torch.ones_like(bs)
         loss = F.mse_loss(br + hp.GAMMA * next_qvals * (1 - bd), qvals)
-
+        # loss = (br + hp.GAMMA * next_qvals * (1 - bd) - qvals) ** 2
+        self.policy_optimizer.zero_grad()
+        loss.backward()
+        self.policy_optimizer.step()
         return loss.detach().numpy()
 
     def clean_settled(self):
