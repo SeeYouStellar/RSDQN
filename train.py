@@ -104,6 +104,7 @@ if __name__ == '__main__':
             s = s_
             step += 1
             globalstep += 1
+
             if done and episode != 1:
                 # if r > 0:
                 for i in range(len(episode_r)):  # 有些情况没有部署完就退出，因为cost<0
@@ -114,6 +115,7 @@ if __name__ == '__main__':
                 #     RB.push(episode_s[-1], episode_a[-1], episode_r[-1], episode_d[-1], episode_s_[-1])
                 rewards.append(r)
                 costs.append(np.mean(episode_cost))
+                # print("episode:{} \t cost: {}".format(episode, costs[-1]))
                 agent.clean_settled()
                 episode_s = []
                 episode_s_ = []
@@ -141,6 +143,8 @@ if __name__ == '__main__':
                 agent.target.load_state_dict(agent.policy.state_dict())
         if episode % hp.plot_frequency == 0 and globalstep > hp.ReplyBuffer_size:
             # plot_reward(rewards)
+
             plot_cost(costs)
+
     plot_loss(losss[:2501])
 

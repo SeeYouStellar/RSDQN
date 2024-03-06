@@ -3,7 +3,7 @@ import numpy as np
 import hyperparameter as hp
 import logging
 
-alpha = 0.5  # reward weighting factor
+alpha = hp.alpha  # reward weighting factor
 beta = [0.5, 0.5]  # 资源亲和度
 
 data = Data()
@@ -138,9 +138,11 @@ class Env():
         # return re*100, g1, g2
         re = 0
         g1 = self.ComCost()
-        g1 = g1 / 4
+        g1 = g1 / 40
         g2 = self.usageVar()
-        g2 = g2 / 0.052812500000000005
+        if g2 > 0:
+            g2 = g2 / 0.0052812500000000005
+
         re += alpha * g1 + (1 - alpha) * g2
         return re, g1, g2
 

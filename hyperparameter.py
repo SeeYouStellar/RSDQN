@@ -10,4 +10,5 @@ lambda3 = 100
 lambda4 = 1
 epsilon = 0.8
 epsilon_decrement = 1e-6
-max_train_episode = 1000
+max_train_episode = 2000
+alpha = 0.5
